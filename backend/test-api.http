@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:3000
+
+###
+# @name login
+# User Login - Should be successful
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "123456"
+}
+
+###
+# User Login - Should fail (wrong password)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "wrongpassword"
+}
+
+###
+# User Login - Should fail (wrong username)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "wronguser",
+  "password": "123456"
+}
+
+###
+# Example of how to use the token for a protected route
+# This route doesn't exist yet, but shows the pattern.
+# @token = {{login.response.body.token}}
+GET {{baseUrl}}/api/protected-route
+Authorization: Bearer {{token}}

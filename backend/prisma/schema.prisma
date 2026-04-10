@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 企业表
+model Enterprise {
+  id              Int      @id @default(autoincrement())
+  org_code        String   @unique
+  name            String
+  region_city     String
+  region_county   String
+  type_level1     String
+  type_level2     String
+  industry_level1 String
+  industry_level2 String
+  contact_person  String
+  contact_phone   String
+  filing_status   String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  monthly_reports MonthlyReport[]
+  user            User?
+}
+
+// 月度报表表
+model MonthlyReport {
+  id                 Int      @id @default(autoincrement())
+  enterprise_id      Int
+  report_period      String // YYYY-MM
+  base_employment    Int
+  current_employment Int
+  reduce_type_code   String?
+  main_reason_code   String?
+  main_reason_desc   String?
+  second_reason_code String?
+  second_reason_desc String?
+  third_reason_code  String?
+  third_reason_desc  String?
+  other_reason       String?
+  report_status      String   @default("DRAFT") // DRAFT, CITY_PENDING, CITY_APPROVED, CITY_REJECTED, PROVINCE_APPROVED, PROVINCE_REJECTED, SUBMITTED
+  submitted_at       DateTime?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  enterprise       Enterprise       @relation(fields: [enterprise_id], references: [id])
+  reduce_type      DictReduceType?  @relation(fields: [reduce_type_code], references: [code])
+  main_reason      DictReduceReason? @relation("main_reason", fields: [main_reason_code], references: [code])
+  second_reason    DictReduceReason? @relation("second_reason", fields: [second_reason_code], references: [code])
+  third_reason     DictReduceReason? @relation("third_reason", fields: [third_reason_code], references: [code])
+
+  @@unique([enterprise_id, report_period])
+  @@index([enterprise_id])
+  @@index([report_period])
+}
+
+// 用户表
+model User {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password      String
+  role          String   @default("enterprise") // enterprise, city, province
+  enterprise_id Int?     @unique // 一个企业只有一个用户账号
+  city          String?
+  status        String   @default("ENABLED") // DISABLED, ENABLED
+  created_at    DateTime @default(now())
+
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+}
+
+// 减少类型字典表
+model DictReduceType {
+  code       String  @id
+  name       String
+  sort_order Int
+
+  reasons         DictReduceReason[]
+  monthly_reports MonthlyReport[]
+}
+
+// 减少原因字典表
+model DictReduceReason {
+  code        String  @id
+  name        String
+  parent_code String?
+  sort_order  Int
+
+  parent_type DictReduceType? @relation(fields: [parent_code], references: [code])
+
+  main_reports    MonthlyReport[] @relation("main_reason")
+  second_reports  MonthlyReport[] @relation("second_reason")
+  third_reports   MonthlyReport[] @relation("third_reason")
+
+  @@index([parent_code])
+}
+
