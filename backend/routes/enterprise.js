@@ -11,7 +11,7 @@ router.use(authMiddleware);
 // Helper function to get enterpriseId from logged-in user
 const getEnterpriseId = async (userId) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (user.role !== 'enterprise' || !user.enterprise_id) {
+  if (!user || user.role.toLowerCase() !== 'enterprise' || !user.enterprise_id) {
     return null;
   }
   return user.enterprise_id;
@@ -95,27 +95,50 @@ router.post('/monthly-report', async (req, res) => {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
-        const { report_period, ...reportData } = req.body;
+        const { report_period, base_employment, current_employment, reduce_type_code, main_reason_code } = req.body;
 
-        // Upsert: update if exists, create if not
-        const report = await prisma.monthlyReport.upsert({
+        // Check if report already exists
+        const existingReport = await prisma.monthlyReport.findUnique({
             where: {
                 enterprise_id_report_period: {
                     enterprise_id: enterpriseId,
                     report_period: report_period,
                 },
             },
-            update: {
-                ...reportData,
-                report_status: 'DRAFT', // Always save as draft
-            },
-            create: {
-                ...reportData,
-                report_period: report_period,
-                enterprise_id: enterpriseId,
-                report_status: 'DRAFT',
-            },
         });
+
+        let report;
+        if (existingReport) {
+            // Update existing report
+            report = await prisma.monthlyReport.update({
+                where: {
+                    enterprise_id_report_period: {
+                        enterprise_id: enterpriseId,
+                        report_period: report_period,
+                    },
+                },
+                data: {
+                    base_employment,
+                    current_employment,
+                    reduce_type_code,
+                    main_reason_code,
+                    report_status: 'DRAFT',
+                },
+            });
+        } else {
+            // Create new report
+            report = await prisma.monthlyReport.create({
+                data: {
+                    enterprise_id: enterpriseId,
+                    report_period,
+                    base_employment,
+                    current_employment,
+                    reduce_type_code,
+                    main_reason_code,
+                    report_status: 'DRAFT',
+                },
+            });
+        }
 
         res.status(201).json({ message: '报表已保存为草稿', report });
     } catch (error) {
@@ -124,19 +147,15 @@ router.post('/monthly-report', async (req, res) => {
     }
 });
 
-// POST /api/enterprise/monthly-report/submit - Submit a report
-router.post('/monthly-report/submit', async (req, res) => {
+// PUT /api/enterprise/monthly-report/:id/submit - Submit a report
+router.put('/monthly-report/:id/submit', async (req, res) => {
     try {
         const enterpriseId = await getEnterpriseId(req.user.userId);
         if (!enterpriseId) {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
-        const { reportId } = req.body;
-        if (!reportId) {
-            return res.status(400).json({ message: '缺少报表ID' });
-        }
-
+        const reportId = parseInt(req.params.id, 10);
         const report = await prisma.monthlyReport.findUnique({
             where: { id: reportId },
         });
@@ -155,7 +174,7 @@ router.post('/monthly-report/submit', async (req, res) => {
 
         const updatedReport = await prisma.monthlyReport.update({
             where: { id: reportId },
-            data: { 
+            data: {
                 report_status: 'CITY_PENDING',
                 submitted_at: new Date(),
             },
@@ -176,14 +195,50 @@ router.get('/monthly-report', async (req, res) => {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
+        const { period } = req.query;
+        const whereClause = { enterprise_id: enterpriseId };
+
+        // If period is specified, filter by period
+        if (period) {
+            whereClause.report_period = period;
+        }
+
         const reports = await prisma.monthlyReport.findMany({
-            where: { enterprise_id: enterpriseId },
+            where: whereClause,
             orderBy: { report_period: 'desc' },
         });
 
         res.json(reports);
     } catch (error) {
         console.error('Get reports error:', error);
+        res.status(500).json({ message: '服务器内部错误' });
+    }
+});
+
+// GET /api/enterprise/monthly-report/list - Get list of reports for enterprise
+router.get('/monthly-report/list', async (req, res) => {
+    try {
+        const enterpriseId = await getEnterpriseId(req.user.userId);
+        if (!enterpriseId) {
+            return res.status(403).json({ message: '无权访问此资源' });
+        }
+
+        const reports = await prisma.monthlyReport.findMany({
+            where: { enterprise_id: enterpriseId },
+            orderBy: { report_period: 'desc' },
+            include: {
+                enterprise: {
+                    select: {
+                        name: true,
+                        org_code: true
+                    }
+                }
+            }
+        });
+
+        res.json(reports);
+    } catch (error) {
+        console.error('Get reports list error:', error);
         res.status(500).json({ message: '服务器内部错误' });
     }
 });
@@ -209,6 +264,42 @@ router.get('/monthly-report/:id', async (req, res) => {
         res.json(report);
     } catch (error) {
         console.error('Get single report error:', error);
+        res.status(500).json({ message: '服务器内部错误' });
+    }
+});
+
+// PUT /api/enterprise/monthly-report/:id - Update a monthly report
+router.put('/monthly-report/:id', async (req, res) => {
+    try {
+        const enterpriseId = await getEnterpriseId(req.user.userId);
+        if (!enterpriseId) {
+            return res.status(403).json({ message: '无权访问此资源' });
+        }
+
+        const reportId = parseInt(req.params.id, 10);
+        const { report_period, ...reportData } = req.body;
+
+        // Check if report exists and belongs to the enterprise
+        const existingReport = await prisma.monthlyReport.findUnique({
+            where: { id: reportId },
+        });
+
+        if (!existingReport || existingReport.enterprise_id !== enterpriseId) {
+            return res.status(404).json({ message: '未找到报表或无权操作' });
+        }
+
+        // Update the report
+        const report = await prisma.monthlyReport.update({
+            where: { id: reportId },
+            data: {
+                ...reportData,
+                report_status: 'DRAFT', // Always save as draft when updating
+            },
+        });
+
+        res.json({ message: '报表已更新', report });
+    } catch (error) {
+        console.error('Update report error:', error);
         res.status(500).json({ message: '服务器内部错误' });
     }
 });
