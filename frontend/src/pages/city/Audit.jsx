@@ -112,7 +112,7 @@ function Audit() {
   const handleApprove = async (reportId) => {
     try {
       setProcessingId(reportId);
-      await api.put(`/api/city/approve/${reportId}`);
+      await api.put(`/api/city/reports/${reportId}/approve`);
       setMessage('报表已成功批准');
       fetchReports(); // 刷新列表
     } catch (error) {
@@ -135,7 +135,7 @@ function Audit() {
 
     try {
       setProcessingId(selectedReport.id);
-      await api.put(`/api/city/reject/${selectedReport.id}`, {
+      await api.put(`/api/city/reports/${selectedReport.id}/reject`, {
         reason: rejectReason.trim()
       });
       setMessage('报表已退回');
