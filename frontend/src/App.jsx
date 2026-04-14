@@ -5,6 +5,9 @@ import Layout from './components/Layout'
 import Profile from './pages/Profile'
 import ReportForm from './pages/ReportForm'
 import ReportList from './pages/ReportList'
+import Audit from './pages/city/Audit'
+import FilingAudit from './pages/province/FilingAudit'
+import ReportAudit from './pages/province/ReportAudit'
 
 function App() {
   const [username, setUsername] = useState('test_enterprise')
@@ -37,6 +40,9 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="report-form" element={<ReportForm />} />
             <Route path="report-list" element={<ReportList />} />
+            <Route path="city/audit" element={<Audit />} />
+            <Route path="province/filing-audit" element={<FilingAudit />} />
+            <Route path="province/report-audit" element={<ReportAudit />} />
           </Route>
         </Routes>
       </Router>

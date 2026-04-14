@@ -1,9 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 
 function Layout() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState('profile');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // 从localStorage获取用户信息
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser(payload.user);
+      } catch (error) {
+        console.error('解析token失败:', error);
+      }
+    }
+  }, []);
 
   const handleMenuClick = (menuKey, path) => {
     setActiveMenu(menuKey);
@@ -13,6 +27,67 @@ function Layout() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.reload(); // 简单重载页面回到登录
+  };
+
+  const renderMenuItems = () => {
+    if (!user) return null;
+
+    const menuItems = [];
+
+    if (user.role === 'enterprise') {
+      menuItems.push(
+        <li key="profile" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'profile' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('profile', '/profile')}>
+          企业信息备案
+        </li>,
+        <li key="report-form" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'report-form' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('report-form', '/report-form')}>
+          月度数据填报
+        </li>,
+        <li key="report-list" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'report-list' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('report-list', '/report-list')}>
+          数据查询
+        </li>
+      );
+    } else if (user.role === 'city') {
+      menuItems.push(
+        <li key="audit" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'audit' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('audit', '/city/audit')}>
+          数据审核
+        </li>
+      );
+    } else if (user.role === 'province') {
+      menuItems.push(
+        <li key="filing-audit" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'filing-audit' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('filing-audit', '/province/filing-audit')}>
+          企业备案审批
+        </li>,
+        <li key="report-audit" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'report-audit' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('report-audit', '/province/report-audit')}>
+          报表终审
+        </li>
+      );
+    }
+
+    return menuItems;
   };
 
   return (
@@ -47,27 +122,7 @@ function Layout() {
           borderRight: '1px solid #ddd'
         }}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            <li style={{
-              padding: '10px 20px',
-              cursor: 'pointer',
-              backgroundColor: activeMenu === 'profile' ? '#ddd' : 'transparent'
-            }} onClick={() => handleMenuClick('profile', '/profile')}>
-              企业信息备案
-            </li>
-            <li style={{
-              padding: '10px 20px',
-              cursor: 'pointer',
-              backgroundColor: activeMenu === 'report-form' ? '#ddd' : 'transparent'
-            }} onClick={() => handleMenuClick('report-form', '/report-form')}>
-              月度数据填报
-            </li>
-            <li style={{
-              padding: '10px 20px',
-              cursor: 'pointer',
-              backgroundColor: activeMenu === 'report-list' ? '#ddd' : 'transparent'
-            }} onClick={() => handleMenuClick('report-list', '/report-list')}>
-              数据查询
-            </li>
+            {renderMenuItems()}
           </ul>
         </aside>
 

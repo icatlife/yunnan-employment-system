@@ -73,7 +73,8 @@ model User {
   status        String   @default("ENABLED") // DISABLED, ENABLED
   created_at    DateTime @default(now())
 
-  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+  enterprise     Enterprise?     @relation(fields: [enterprise_id], references: [id])
+  operation_logs OperationLog[]
 }
 
 // 减少类型字典表
@@ -100,5 +101,22 @@ model DictReduceReason {
   third_reports   MonthlyReport[] @relation("third_reason")
 
   @@index([parent_code])
+}
+
+// 操作日志表
+model OperationLog {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  operation     String   // 操作类型，如 'CITY_APPROVE', 'CITY_REJECT'
+  target_type   String   // 操作对象类型，如 'MONTHLY_REPORT'
+  target_id     Int      // 操作对象ID
+  description   String   // 操作描述
+  details       String?  // 详细内容，如退回原因
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([target_type, target_id])
 }
 

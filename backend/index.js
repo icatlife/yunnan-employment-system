@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const enterpriseRoutes = require('./routes/enterprise');
+const cityRoutes = require('./routes/city');
+const provinceRoutes = require('./routes/province');
 const dictRoutes = require('./routes/dict');
 
 const app = express();
@@ -18,6 +20,8 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/city', cityRoutes);
+app.use('/api/province', provinceRoutes);
 app.use('/api/dict', dictRoutes);
 
 // A simple test route
