@@ -78,12 +78,12 @@ router.put('/enterprises/:id/approve', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: req.user.userId,
-        operation: 'PROVINCE_ENTERPRISE_APPROVE',
-        target_type: 'ENTERPRISE',
-        target_id: enterpriseId,
-        description: `省审批通过企业备案：${enterprise.name}`,
-        details: null
+        userId: req.user.userId,
+        username: req.user.username,
+        operationType: 'PROVINCE_ENTERPRISE_APPROVE',
+        targetType: 'ENTERPRISE',
+        targetId: enterpriseId,
+        reason: null
       }
     });
 
@@ -137,12 +137,12 @@ router.put('/enterprises/:id/reject', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: req.user.userId,
-        operation: 'PROVINCE_ENTERPRISE_REJECT',
-        target_type: 'ENTERPRISE',
-        target_id: enterpriseId,
-        description: `省审批退回企业备案：${enterprise.name}`,
-        details: reason.trim()
+        userId: req.user.userId,
+        username: req.user.username,
+        operationType: 'PROVINCE_ENTERPRISE_REJECT',
+        targetType: 'ENTERPRISE',
+        targetId: enterpriseId,
+        reason: reason.trim()
       }
     });
 
@@ -244,12 +244,12 @@ router.put('/reports/:id/approve', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: req.user.userId,
-        operation: 'PROVINCE_REPORT_APPROVE',
-        target_type: 'MONTHLY_REPORT',
-        target_id: reportId,
-        description: `省终审通过报表：${report.enterprise.name} - ${report.report_period}`,
-        details: null
+        userId: req.user.userId,
+        username: req.user.username,
+        operationType: 'PROVINCE_REPORT_APPROVE',
+        targetType: 'MONTHLY_REPORT',
+        targetId: reportId,
+        reason: null
       }
     });
 
@@ -304,12 +304,12 @@ router.put('/reports/:id/reject', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: req.user.userId,
-        operation: 'PROVINCE_REPORT_REJECT',
-        target_type: 'MONTHLY_REPORT',
-        target_id: reportId,
-        description: `省终审退回报表：${report.enterprise.name} - ${report.report_period}`,
-        details: reason.trim()
+        userId: req.user.userId,
+        username: req.user.username,
+        operationType: 'PROVINCE_REPORT_REJECT',
+        targetType: 'MONTHLY_REPORT',
+        targetId: reportId,
+        reason: reason.trim()
       }
     });
 
@@ -355,12 +355,12 @@ router.post('/reports/submit-to-ministry', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: req.user.userId,
-        operation: 'SUBMIT_TO_MINISTRY',
-        target_type: 'REPORT_PERIOD',
-        target_id: 0, // Use 0 for period-based operations
-        description: `上报部委：${report_period} 调查期，共${result.count}个报表`,
-        details: report_period
+        userId: req.user.userId,
+        username: req.user.username,
+        operationType: 'SUBMIT_TO_MINISTRY',
+        targetType: 'REPORT_PERIOD',
+        targetId: 0,
+        reason: report_period
       }
     });
 

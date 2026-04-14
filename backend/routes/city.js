@@ -8,13 +8,42 @@ const router = express.Router();
 // Apply auth middleware to all routes in this file
 router.use(authMiddleware);
 
-// Helper function to verify city user and get city name
-const getCityUser = async (userId) => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.role.toLowerCase() !== 'city' || !user.city) {
-    return null;
+// Helper function to verify city user based on token + db record
+const getCityUser = async (authUser) => {
+  if (!authUser || String(authUser.role).toLowerCase() !== 'city') {
+    return { user: null, error: '仅市级用户可访问此资源' };
   }
-  return user;
+
+  const userId = Number(authUser.userId);
+  if (!Number.isInteger(userId)) {
+    return { user: null, error: '无效的用户身份信息' };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      city: true,
+      status: true,
+    },
+  });
+
+  if (!user) {
+    return { user: null, error: '用户不存在' };
+  }
+  if (user.status !== 'ENABLED') {
+    return { user: null, error: '账户已禁用' };
+  }
+  if (String(user.role).toLowerCase() !== 'city') {
+    return { user: null, error: '用户角色不是市级账号' };
+  }
+  if (!user.city || !user.city.trim()) {
+    return { user: null, error: '市级账号未配置所属地市' };
+  }
+
+  return { user, error: null };
 };
 
 // Helper function to verify report belongs to user's city
@@ -42,9 +71,9 @@ const verifyReportOwnership = async (reportId, cityName) => {
 // GET /api/city/reports - Get reports from enterprises in the city
 router.get('/reports', async (req, res) => {
   try {
-    const user = await getCityUser(req.user.userId);
+    const { user, error } = await getCityUser(req.user);
     if (!user) {
-      return res.status(403).json({ message: '无权访问此资源' });
+      return res.status(403).json({ message: error || '无权访问此资源' });
     }
 
     const reports = await prisma.monthlyReport.findMany({
@@ -97,9 +126,9 @@ router.get('/reports', async (req, res) => {
 // PUT /api/city/reports/:id/approve - Approve a report
 router.put('/reports/:id/approve', async (req, res) => {
   try {
-    const user = await getCityUser(req.user.userId);
+    const { user, error } = await getCityUser(req.user);
     if (!user) {
-      return res.status(403).json({ message: '无权访问此资源' });
+      return res.status(403).json({ message: error || '无权访问此资源' });
     }
 
     const { id } = req.params;
@@ -122,12 +151,12 @@ router.put('/reports/:id/approve', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: user.id,
-        operation: 'CITY_APPROVE',
-        target_type: 'MONTHLY_REPORT',
-        target_id: parseInt(id),
-        description: `市级审核通过报表：${report.enterprise.name} - ${report.report_period}`,
-        details: null
+        userId: user.id,
+        username: user.username,
+        operationType: 'CITY_APPROVE',
+        targetType: 'MONTHLY_REPORT',
+        targetId: parseInt(id),
+        reason: null
       }
     });
 
@@ -144,9 +173,9 @@ router.put('/reports/:id/approve', async (req, res) => {
 // PUT /api/city/reports/:id/reject - Reject a report
 router.put('/reports/:id/reject', async (req, res) => {
   try {
-    const user = await getCityUser(req.user.userId);
+    const { user, error } = await getCityUser(req.user);
     if (!user) {
-      return res.status(403).json({ message: '无权访问此资源' });
+      return res.status(403).json({ message: error || '无权访问此资源' });
     }
 
     const { id } = req.params;
@@ -176,12 +205,12 @@ router.put('/reports/:id/reject', async (req, res) => {
     // Log operation
     await prisma.operationLog.create({
       data: {
-        user_id: user.id,
-        operation: 'CITY_REJECT',
-        target_type: 'MONTHLY_REPORT',
-        target_id: parseInt(id),
-        description: `市级审核退回报表：${report.enterprise.name} - ${report.report_period}`,
-        details: reason.trim()
+        userId: user.id,
+        username: user.username,
+        operationType: 'CITY_REJECT',
+        targetType: 'MONTHLY_REPORT',
+        targetId: parseInt(id),
+        reason: reason.trim()
       }
     });
 

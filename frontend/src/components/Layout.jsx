@@ -8,13 +8,13 @@ function Layout() {
 
   useEffect(() => {
     // 从localStorage获取用户信息
-    const token = localStorage.getItem('token');
-    if (token) {
+    const userData = localStorage.getItem('user');
+    if (userData) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser(payload.user);
+        const user = JSON.parse(userData);
+        setUser(user);
       } catch (error) {
-        console.error('解析token失败:', error);
+        console.error('解析用户信息失败:', error);
       }
     }
   }, []);
@@ -26,6 +26,7 @@ function Layout() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     window.location.reload(); // 简单重载页面回到登录
   };
 

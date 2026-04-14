@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import api from './api'
 import Layout from './components/Layout'
@@ -18,6 +18,17 @@ function App() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch {
+        localStorage.removeItem('user')
+      }
+    }
+  }, [])
+
   const handleLogin = async () => {
     setLoading(true)
     setError('')
@@ -25,6 +36,7 @@ function App() {
       const res = await api.post('/api/auth/login', { username, password })
       const { token, user: userData } = res.data
       localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(userData)) // 存储完整的用户信息
       setUser(userData)
     } catch (err) {
       setError(err.response?.data?.message || '登录失败')
@@ -32,19 +44,38 @@ function App() {
     setLoading(false)
   }
 
+  // 根据用户角色确定默认跳转页面
+  const getDefaultRoute = (userRole) => {
+    switch (userRole) {
+      case 'enterprise':
+        return '/profile'
+      case 'city':
+        return '/city/audit'
+      case 'province':
+        return '/province/filing-audit'
+      default:
+        return '/profile'
+    }
+  }
+
+  const canAccess = (allowedRoles) => {
+    return !!user && allowedRoles.includes(user.role)
+  }
+
   if (user) {
     return (
       <Router>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/profile" replace />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="report-form" element={<ReportForm />} />
-            <Route path="report-list" element={<ReportList />} />
-            <Route path="city/audit" element={<Audit />} />
-            <Route path="province/filing-audit" element={<FilingAudit />} />
-            <Route path="province/report-audit" element={<ReportAudit />} />
-            <Route path="province/summary" element={<Summary />} />
+            <Route index element={<Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="profile" element={canAccess(['enterprise']) ? <Profile /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="report-form" element={canAccess(['enterprise']) ? <ReportForm /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="report-list" element={canAccess(['enterprise']) ? <ReportList /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="city/audit" element={canAccess(['city']) ? <Audit /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="province/filing-audit" element={canAccess(['province']) ? <FilingAudit /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="province/report-audit" element={canAccess(['province']) ? <ReportAudit /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="province/summary" element={canAccess(['province']) ? <Summary /> : <Navigate to={getDefaultRoute(user.role)} replace />} />
+            <Route path="*" element={<Navigate to={getDefaultRoute(user.role)} replace />} />
           </Route>
         </Routes>
       </Router>
