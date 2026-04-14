@@ -166,9 +166,24 @@ router.get('/reports', async (req, res) => {
       return res.status(403).json({ message: '无权访问此资源' });
     }
 
+    const statusQuery = req.query.status;
+    let statusFilter = ['CITY_APPROVED'];
+
+    if (statusQuery) {
+      const statuses = String(statusQuery)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) {
+        statusFilter = statuses;
+      }
+    }
+
     const reports = await prisma.monthlyReport.findMany({
       where: {
-        report_status: 'CITY_APPROVED'
+        report_status: {
+          in: statusFilter,
+        },
       },
       include: {
         enterprise: {

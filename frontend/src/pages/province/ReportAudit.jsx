@@ -4,6 +4,7 @@ import api from '../../api';
 function ReportAudit() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pending');
   const [selectedReport, setSelectedReport] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -51,13 +52,16 @@ function ReportAudit() {
   };
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    fetchReports(activeTab);
+  }, [activeTab]);
 
-  const fetchReports = async () => {
+  const fetchReports = async (tab = activeTab) => {
     try {
       setLoading(true);
-      const response = await api.get('/api/province/reports');
+      const status = tab === 'pending' ? 'CITY_APPROVED' : 'PROVINCE_APPROVED';
+      const response = await api.get('/api/province/reports', {
+        params: { status }
+      });
       setReports(response.data);
       setMessage('');
     } catch (error) {
@@ -90,7 +94,7 @@ function ReportAudit() {
       setProcessingId(reportId);
       await api.put(`/api/province/reports/${reportId}/approve`);
       setMessage('报表已终审通过');
-      fetchReports(); // 刷新列表
+      fetchReports(activeTab); // 刷新列表
     } catch (error) {
       setMessage('批准失败：' + (error.response?.data?.message || error.message));
     } finally {
@@ -118,7 +122,7 @@ function ReportAudit() {
       setShowRejectModal(false);
       setRejectReason('');
       setSelectedReport(null);
-      fetchReports(); // 刷新列表
+      fetchReports(activeTab); // 刷新列表
     } catch (error) {
       setMessage('退回失败：' + (error.response?.data?.message || error.message));
     } finally {
@@ -145,7 +149,7 @@ function ReportAudit() {
       });
       setMessage(`成功上报${response.data.submitted_count}个报表至部委`);
       setSubmitPeriod('');
-      fetchReports(); // 刷新列表
+      fetchReports(activeTab); // 刷新列表
     } catch (error) {
       setMessage('上报失败：' + (error.response?.data?.message || error.message));
     } finally {
@@ -165,6 +169,39 @@ function ReportAudit() {
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
       <h2 style={{ marginBottom: '30px', color: '#333' }}>报表终审</h2>
 
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px'
+      }}>
+        <button
+          onClick={() => setActiveTab('pending')}
+          style={{
+            padding: '8px 14px',
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            backgroundColor: activeTab === 'pending' ? '#007bff' : '#fff',
+            color: activeTab === 'pending' ? '#fff' : '#333',
+            cursor: 'pointer'
+          }}
+        >
+          待终审
+        </button>
+        <button
+          onClick={() => setActiveTab('approved')}
+          style={{
+            padding: '8px 14px',
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            backgroundColor: activeTab === 'approved' ? '#007bff' : '#fff',
+            color: activeTab === 'approved' ? '#fff' : '#333',
+            cursor: 'pointer'
+          }}
+        >
+          已终审
+        </button>
+      </div>
+
       {message && (
         <div style={{
           padding: '10px',
@@ -178,57 +215,58 @@ function ReportAudit() {
         </div>
       )}
 
-      {/* 上报部委区域 */}
-      <div style={{
-        backgroundColor: '#f8f9fa',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '30px',
-        border: '1px solid #dee2e6'
-      }}>
-        <h3 style={{ marginBottom: '15px', color: '#333' }}>上报部委</h3>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <div>
-            <label style={{ marginRight: '10px', fontWeight: 'bold' }}>调查期：</label>
-            <input
-              type="month"
-              value={submitPeriod}
-              onChange={(e) => setSubmitPeriod(e.target.value)}
+      {activeTab === 'approved' && (
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '30px',
+          border: '1px solid #dee2e6'
+        }}>
+          <h3 style={{ marginBottom: '15px', color: '#333' }}>上报部委</h3>
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <div>
+              <label style={{ marginRight: '10px', fontWeight: 'bold' }}>调查期：</label>
+              <input
+                type="month"
+                value={submitPeriod}
+                onChange={(e) => setSubmitPeriod(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+            <button
+              onClick={handleSubmitToMinistry}
+              disabled={submitting}
               style={{
-                padding: '8px 12px',
-                border: '1px solid #ddd',
+                padding: '8px 16px',
+                backgroundColor: submitting ? '#6c757d' : '#007bff',
+                color: 'white',
+                border: 'none',
                 borderRadius: '4px',
+                cursor: submitting ? 'not-allowed' : 'pointer',
                 fontSize: '14px'
               }}
-            />
+              onMouseOver={(e) => {
+                if (!submitting) e.target.style.backgroundColor = '#0056b3';
+              }}
+              onMouseOut={(e) => {
+                if (!submitting) e.target.style.backgroundColor = '#007bff';
+              }}
+            >
+              {submitting ? '上报中...' : '上报部委'}
+            </button>
           </div>
-          <button
-            onClick={handleSubmitToMinistry}
-            disabled={submitting}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: submitting ? '#6c757d' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
-            }}
-            onMouseOver={(e) => {
-              if (!submitting) e.target.style.backgroundColor = '#0056b3';
-            }}
-            onMouseOut={(e) => {
-              if (!submitting) e.target.style.backgroundColor = '#007bff';
-            }}
-          >
-            {submitting ? '上报中...' : '上报部委'}
-          </button>
         </div>
-      </div>
+      )}
 
       {reports.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}>
-          <p>暂无待终审报表</p>
+          <p>{activeTab === 'pending' ? '暂无待终审报表' : '暂无已终审报表'}</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -246,6 +284,7 @@ function ReportAudit() {
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>调查期</th>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>建档期就业人数</th>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>调查期就业人数</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>状态</th>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>操作</th>
               </tr>
             </thead>
@@ -257,6 +296,9 @@ function ReportAudit() {
                   <td style={{ padding: '12px' }}>{report.report_period}</td>
                   <td style={{ padding: '12px' }}>{report.base_employment}</td>
                   <td style={{ padding: '12px' }}>{report.current_employment}</td>
+                  <td style={{ padding: '12px' }}>
+                    {activeTab === 'pending' ? '待终审' : '省通过'}
+                  </td>
                   <td style={{ padding: '12px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
@@ -275,48 +317,52 @@ function ReportAudit() {
                       >
                         查看详情
                       </button>
-                      <button
-                        onClick={() => handleApprove(report.id)}
-                        disabled={processingId === report.id}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: processingId === report.id ? '#6c757d' : '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: processingId === report.id ? 'not-allowed' : 'pointer',
-                          fontSize: '14px'
-                        }}
-                        onMouseOver={(e) => {
-                          if (processingId !== report.id) e.target.style.backgroundColor = '#1e7e34';
-                        }}
-                        onMouseOut={(e) => {
-                          if (processingId !== report.id) e.target.style.backgroundColor = '#28a745';
-                        }}
-                      >
-                        {processingId === report.id ? '处理中...' : '通过'}
-                      </button>
-                      <button
-                        onClick={() => handleReject(report)}
-                        disabled={processingId === report.id}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: processingId === report.id ? '#6c757d' : '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: processingId === report.id ? 'not-allowed' : 'pointer',
-                          fontSize: '14px'
-                        }}
-                        onMouseOver={(e) => {
-                          if (processingId !== report.id) e.target.style.backgroundColor = '#c82333';
-                        }}
-                        onMouseOut={(e) => {
-                          if (processingId !== report.id) e.target.style.backgroundColor = '#dc3545';
-                        }}
-                      >
-                        {processingId === report.id ? '处理中...' : '退回'}
-                      </button>
+                      {activeTab === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApprove(report.id)}
+                            disabled={processingId === report.id}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: processingId === report.id ? '#6c757d' : '#28a745',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: processingId === report.id ? 'not-allowed' : 'pointer',
+                              fontSize: '14px'
+                            }}
+                            onMouseOver={(e) => {
+                              if (processingId !== report.id) e.target.style.backgroundColor = '#1e7e34';
+                            }}
+                            onMouseOut={(e) => {
+                              if (processingId !== report.id) e.target.style.backgroundColor = '#28a745';
+                            }}
+                          >
+                            {processingId === report.id ? '处理中...' : '通过'}
+                          </button>
+                          <button
+                            onClick={() => handleReject(report)}
+                            disabled={processingId === report.id}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: processingId === report.id ? '#6c757d' : '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: processingId === report.id ? 'not-allowed' : 'pointer',
+                              fontSize: '14px'
+                            }}
+                            onMouseOver={(e) => {
+                              if (processingId !== report.id) e.target.style.backgroundColor = '#c82333';
+                            }}
+                            onMouseOut={(e) => {
+                              if (processingId !== report.id) e.target.style.backgroundColor = '#dc3545';
+                            }}
+                          >
+                            {processingId === report.id ? '处理中...' : '退回'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -376,13 +422,13 @@ function ReportAudit() {
               <span style={{
                 padding: '4px 8px',
                 borderRadius: '4px',
-                backgroundColor: '#17a2b8',
+                backgroundColor: selectedReport.report_status === 'PROVINCE_APPROVED' ? '#28a745' : '#17a2b8',
                 color: 'white',
                 fontSize: '12px',
                 fontWeight: 'bold',
                 marginLeft: '8px'
               }}>
-                待省终审
+                {selectedReport.report_status === 'PROVINCE_APPROVED' ? '省通过' : '待省终审'}
               </span>
             </div>
 
