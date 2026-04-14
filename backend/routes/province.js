@@ -375,4 +375,97 @@ router.post('/reports/submit-to-ministry', async (req, res) => {
   }
 });
 
+// --- Province Data Summary API ---
+
+// GET /api/province/summary - Get province-wide data summary
+router.get('/summary', async (req, res) => {
+  try {
+    const user = await getProvinceUser(req.user.userId);
+    if (!user) {
+      return res.status(403).json({ message: '无权访问此资源' });
+    }
+
+    const { report_period } = req.query;
+    if (!report_period) {
+      return res.status(400).json({ message: '调查期参数不能为空' });
+    }
+
+    // Get all submitted reports for the period (PROVINCE_APPROVED or SUBMITTED)
+    const reports = await prisma.monthlyReport.findMany({
+      where: {
+        report_period: report_period,
+        report_status: {
+          in: ['PROVINCE_APPROVED', 'SUBMITTED']
+        }
+      },
+      include: {
+        enterprise: {
+          select: {
+            region_city: true
+          }
+        }
+      }
+    });
+
+    if (reports.length === 0) {
+      return res.json({
+        province_summary: {
+          total_enterprises: 0,
+          total_base_employment: 0,
+          total_current_employment: 0,
+          total_job_change: 0
+        },
+        city_summaries: []
+      });
+    }
+
+    // Calculate province summary
+    const provinceSummary = {
+      total_enterprises: reports.length,
+      total_base_employment: reports.reduce((sum, report) => sum + report.base_employment, 0),
+      total_current_employment: reports.reduce((sum, report) => sum + report.current_employment, 0),
+      total_job_change: 0
+    };
+    provinceSummary.total_job_change = provinceSummary.total_current_employment - provinceSummary.total_base_employment;
+
+    // Calculate city summaries
+    const cityMap = new Map();
+
+    reports.forEach(report => {
+      const city = report.enterprise.region_city;
+      if (!cityMap.has(city)) {
+        cityMap.set(city, {
+          city_name: city,
+          enterprise_count: 0,
+          total_base_employment: 0,
+          total_current_employment: 0,
+          total_job_change: 0
+        });
+      }
+
+      const cityData = cityMap.get(city);
+      cityData.enterprise_count += 1;
+      cityData.total_base_employment += report.base_employment;
+      cityData.total_current_employment += report.current_employment;
+    });
+
+    // Calculate job changes for each city
+    const citySummaries = Array.from(cityMap.values()).map(cityData => ({
+      ...cityData,
+      total_job_change: cityData.total_current_employment - cityData.total_base_employment
+    }));
+
+    // Sort cities by enterprise count descending
+    citySummaries.sort((a, b) => b.enterprise_count - a.enterprise_count);
+
+    res.json({
+      province_summary: provinceSummary,
+      city_summaries: citySummaries
+    });
+  } catch (error) {
+    console.error('Get province summary error:', error);
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
 module.exports = router;

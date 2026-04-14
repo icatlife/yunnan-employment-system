@@ -8,6 +8,7 @@ import ReportList from './pages/ReportList'
 import Audit from './pages/city/Audit'
 import FilingAudit from './pages/province/FilingAudit'
 import ReportAudit from './pages/province/ReportAudit'
+import Summary from './pages/province/Summary'
 
 function App() {
   const [username, setUsername] = useState('test_enterprise')
@@ -43,6 +44,7 @@ function App() {
             <Route path="city/audit" element={<Audit />} />
             <Route path="province/filing-audit" element={<FilingAudit />} />
             <Route path="province/report-audit" element={<ReportAudit />} />
+            <Route path="province/summary" element={<Summary />} />
           </Route>
         </Routes>
       </Router>

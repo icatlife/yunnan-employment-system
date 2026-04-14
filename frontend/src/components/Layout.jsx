@@ -83,6 +83,13 @@ function Layout() {
           backgroundColor: activeMenu === 'report-audit' ? '#ddd' : 'transparent'
         }} onClick={() => handleMenuClick('report-audit', '/province/report-audit')}>
           报表终审
+        </li>,
+        <li key="summary" style={{
+          padding: '10px 20px',
+          cursor: 'pointer',
+          backgroundColor: activeMenu === 'summary' ? '#ddd' : 'transparent'
+        }} onClick={() => handleMenuClick('summary', '/province/summary')}>
+          数据汇总
         </li>
       );
     }
