@@ -17,6 +17,21 @@ const getEnterpriseId = async (userId) => {
   return user.enterprise_id;
 };
 
+// Normalize report metadata for storage/query consistency.
+// full_month is stored as half_type="全月"; half_month requires 上旬/下旬.
+const normalizeReportMeta = (reportTypeInput, halfTypeInput) => {
+    const reportType = reportTypeInput === 'half_month' ? 'half_month' : 'full_month';
+
+    if (reportType === 'half_month') {
+        if (!['上旬', '下旬'].includes(halfTypeInput)) {
+            return { error: '半月报必须指定 half_type，且仅支持“上旬”或“下旬”' };
+        }
+        return { reportType, halfType: halfTypeInput };
+    }
+
+    return { reportType, halfType: '全月' };
+};
+
 
 // --- Profile & Filing API ---
 
@@ -95,60 +110,46 @@ router.post('/monthly-report', async (req, res) => {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
-        const { report_period, report_type = 'full_month', half_type, base_employment, current_employment, reduce_type_code, main_reason_code } = req.body;
+        const { report_period, report_type = 'full_month', half_type = null, base_employment, current_employment, reduce_type_code, main_reason_code } = req.body;
 
-        // Check if report already exists
-        const existingReport = await prisma.monthlyReport.findUnique({
+        const meta = normalizeReportMeta(report_type, half_type);
+        if (meta.error) {
+            return res.status(400).json({ message: meta.error });
+        }
+
+        // Upsert by unique key to avoid duplicate-create 500 when user repeatedly saves same period.
+        const report = await prisma.monthlyReport.upsert({
             where: {
-                enterprise_id_report_period_report_type_half_type: {
+                enterprise_id_report_period_half_type: {
                     enterprise_id: enterpriseId,
-                    report_period: report_period,
-                    report_type: report_type,
-                    half_type: half_type,
+                    report_period,
+                    half_type: meta.halfType,
                 },
+            },
+            update: {
+                report_type: meta.reportType,
+                base_employment,
+                current_employment,
+                reduce_type_code,
+                main_reason_code,
+                report_status: 'DRAFT',
+            },
+            create: {
+                enterprise_id: enterpriseId,
+                report_period,
+                report_type: meta.reportType,
+                half_type: meta.halfType,
+                base_employment,
+                current_employment,
+                reduce_type_code,
+                main_reason_code,
+                report_status: 'DRAFT',
             },
         });
 
-        let report;
-        if (existingReport) {
-            // Update existing report
-            report = await prisma.monthlyReport.update({
-                where: {
-                    enterprise_id_report_period_report_type_half_type: {
-                        enterprise_id: enterpriseId,
-                        report_period: report_period,
-                        report_type: report_type,
-                        half_type: half_type,
-                    },
-                },
-                data: {
-                    base_employment,
-                    current_employment,
-                    reduce_type_code,
-                    main_reason_code,
-                    report_status: 'DRAFT',
-                },
-            });
-        } else {
-            // Create new report
-            report = await prisma.monthlyReport.create({
-                data: {
-                    enterprise_id: enterpriseId,
-                    report_period,
-                    report_type,
-                    half_type,
-                    base_employment,
-                    current_employment,
-                    reduce_type_code,
-                    main_reason_code,
-                    report_status: 'DRAFT',
-                },
-            });
-        }
-
         res.status(201).json({ message: '报表已保存为草稿', report });
     } catch (error) {
-        console.error('Save report error:', error);
+        console.error('Save report error:', error.message || error);
         res.status(500).json({ message: '服务器内部错误' });
     }
 });
@@ -211,7 +212,15 @@ router.get('/monthly-report', async (req, res) => {
         if (report_type) {
             whereClause.report_type = report_type;
         }
-        if (half_type) {
+        if (report_type === 'full_month') {
+            // full_month is stored as "全月" in DB; frontend may send half_type=null
+            whereClause.half_type = '全月';
+        } else if (report_type === 'half_month') {
+            if (!['上旬', '下旬'].includes(half_type)) {
+                return res.status(400).json({ message: '半月报查询时 half_type 必须为“上旬”或“下旬”' });
+            }
+            whereClause.half_type = half_type;
+        } else if (half_type !== undefined && half_type !== 'null') {
             whereClause.half_type = half_type;
         }
 
@@ -279,7 +288,7 @@ router.get('/monthly-report/:id', async (req, res) => {
         res.status(500).json({ message: '服务器内部错误' });
     }
 });
-
+module.exports = router;
 // PUT /api/enterprise/monthly-report/:id - Update a monthly report
 router.put('/monthly-report/:id', async (req, res) => {
     try {
@@ -290,6 +299,11 @@ router.put('/monthly-report/:id', async (req, res) => {
 
         const reportId = parseInt(req.params.id, 10);
         const { report_period, report_type, half_type, ...reportData } = req.body;
+
+        const normalizedInput = normalizeReportMeta(report_type, half_type);
+        if (normalizedInput.error) {
+            return res.status(400).json({ message: normalizedInput.error });
+        }
 
         // Check if report exists and belongs to the enterprise
         const existingReport = await prisma.monthlyReport.findUnique({
@@ -305,8 +319,8 @@ router.put('/monthly-report/:id', async (req, res) => {
             where: { id: reportId },
             data: {
                 ...reportData,
-                ...(report_type && { report_type }),
-                ...(half_type !== undefined && { half_type }),
+                report_type: normalizedInput.reportType,
+                half_type: normalizedInput.halfType,
                 report_status: 'DRAFT', // Always save as draft when updating
             },
         });

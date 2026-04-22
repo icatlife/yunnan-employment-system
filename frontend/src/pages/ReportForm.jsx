@@ -186,14 +186,22 @@ function ReportForm() {
 
   const loadExistingData = async (period) => {
     try {
-      const { report_period, report_type } = getReportParams(period);
-      const response = await api.get(`/api/enterprise/monthly-report?period=${report_period}&report_type=${report_type}`);
+      const { report_period, report_type, half_type } = getReportParams(period);
+      const params = new URLSearchParams();
+      params.append('period', report_period);
+      params.append('report_type', report_type);
+      if (half_type !== null) {
+        params.append('half_type', half_type);
+      } else {
+        params.append('half_type', 'null');
+      }
+      const response = await api.get(`/api/enterprise/monthly-report?${params.toString()}`);
       if (response.data && response.data.length > 0) {
         const report = response.data[0]; // 假设返回数组，取第一个
         setExistingData(report);
         setReportId(report.id);
         setFormData({
-          period: report.report_period,
+          period: report.report_type === 'half_month' ? `${report.report_period}-${report.half_type}` : report.report_period,
           baselineEmployment: report.base_employment?.toString() || '',
           currentEmployment: report.current_employment?.toString() || '',
           reductionType: report.reduce_type_code || '',

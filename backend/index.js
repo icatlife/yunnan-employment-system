@@ -26,6 +26,7 @@ app.get('/', (req, res) => {
   res.send('Yunnan Employment System Backend is running!');
 });
 
+console.log('Starting server...');
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
