@@ -11,10 +11,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-// 明确配置CORS，允许来自前端开发服务器的请求
-app.use(cors({
-  origin: 'http://localhost:5173' 
-}));
+app.use(cors());
 app.use(express.json());
 
 // Routes

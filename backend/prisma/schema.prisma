@@ -36,6 +36,8 @@ model MonthlyReport {
   id                 Int      @id @default(autoincrement())
   enterprise_id      Int
   report_period      String // YYYY-MM
+  report_type        String   @default("full_month")  // half_month 或 full_month
+  half_type          String?  // 上旬 或 下旬，对于 half_month
   base_employment    Int
   current_employment Int
   reduce_type_code   String?
@@ -57,7 +59,7 @@ model MonthlyReport {
   second_reason    DictReduceReason? @relation("second_reason", fields: [second_reason_code], references: [code])
   third_reason     DictReduceReason? @relation("third_reason", fields: [third_reason_code], references: [code])
 
-  @@unique([enterprise_id, report_period])
+  @@unique([enterprise_id, report_period, report_type, half_type])
   @@index([enterprise_id])
   @@index([report_period])
 }

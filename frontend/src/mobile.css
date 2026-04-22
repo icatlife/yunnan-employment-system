@@ -1,0 +1,159 @@
+body {
+  font-size: 16px;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  background-color: #333;
+  color: #fff;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  border: 1px solid #666;
+  background: #222;
+  color: #fff;
+  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.logout-btn {
+  background-color: #f44336;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.app-sidebar {
+  width: 220px;
+  background-color: #f0f0f0;
+  border-right: 1px solid #ddd;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.app-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-menu-item {
+  padding: 10px 18px;
+  cursor: pointer;
+}
+
+.app-menu-item.active {
+  background-color: #ddd;
+  font-weight: 600;
+}
+
+.content-main {
+  flex: 1;
+  background-color: #fff;
+  padding: 20px;
+  overflow: auto;
+}
+
+.content-main table {
+  min-width: 700px;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-title {
+    font-size: 17px;
+  }
+
+  .logout-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .app-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .content-main {
+    padding: 12px;
+  }
+
+  .content-main table {
+    min-width: 640px;
+  }
+
+  /* 表单在手机端单列 */
+  .content-main form > div {
+    width: 100%;
+  }
+
+  .content-main form div[style*='display: flex'] {
+    flex-direction: column !important;
+  }
+}

@@ -95,14 +95,16 @@ router.post('/monthly-report', async (req, res) => {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
-        const { report_period, base_employment, current_employment, reduce_type_code, main_reason_code } = req.body;
+        const { report_period, report_type = 'full_month', half_type, base_employment, current_employment, reduce_type_code, main_reason_code } = req.body;
 
         // Check if report already exists
         const existingReport = await prisma.monthlyReport.findUnique({
             where: {
-                enterprise_id_report_period: {
+                enterprise_id_report_period_report_type_half_type: {
                     enterprise_id: enterpriseId,
                     report_period: report_period,
+                    report_type: report_type,
+                    half_type: half_type,
                 },
             },
         });
@@ -112,9 +114,11 @@ router.post('/monthly-report', async (req, res) => {
             // Update existing report
             report = await prisma.monthlyReport.update({
                 where: {
-                    enterprise_id_report_period: {
+                    enterprise_id_report_period_report_type_half_type: {
                         enterprise_id: enterpriseId,
                         report_period: report_period,
+                        report_type: report_type,
+                        half_type: half_type,
                     },
                 },
                 data: {
@@ -131,6 +135,8 @@ router.post('/monthly-report', async (req, res) => {
                 data: {
                     enterprise_id: enterpriseId,
                     report_period,
+                    report_type,
+                    half_type,
                     base_employment,
                     current_employment,
                     reduce_type_code,
@@ -195,12 +201,18 @@ router.get('/monthly-report', async (req, res) => {
             return res.status(403).json({ message: '无权访问此资源' });
         }
 
-        const { period } = req.query;
+        const { period, report_type, half_type } = req.query;
         const whereClause = { enterprise_id: enterpriseId };
 
         // If period is specified, filter by period
         if (period) {
             whereClause.report_period = period;
+        }
+        if (report_type) {
+            whereClause.report_type = report_type;
+        }
+        if (half_type) {
+            whereClause.half_type = half_type;
         }
 
         const reports = await prisma.monthlyReport.findMany({
@@ -277,7 +289,7 @@ router.put('/monthly-report/:id', async (req, res) => {
         }
 
         const reportId = parseInt(req.params.id, 10);
-        const { report_period, ...reportData } = req.body;
+        const { report_period, report_type, half_type, ...reportData } = req.body;
 
         // Check if report exists and belongs to the enterprise
         const existingReport = await prisma.monthlyReport.findUnique({
@@ -293,6 +305,8 @@ router.put('/monthly-report/:id', async (req, res) => {
             where: { id: reportId },
             data: {
                 ...reportData,
+                ...(report_type && { report_type }),
+                ...(half_type !== undefined && { half_type }),
                 report_status: 'DRAFT', // Always save as draft when updating
             },
         });

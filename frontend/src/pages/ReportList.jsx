@@ -98,6 +98,15 @@ function ReportList() {
     return reduceReasonMap[code] || code;
   };
 
+  const formatPeriodDisplay = (report) => {
+    const [year, month] = report.report_period.split('-');
+    if (report.report_type === 'half_month') {
+      return `${year}年${parseInt(month)}月 ${report.half_type}`;
+    } else {
+      return `${year}年${parseInt(month)}月`;
+    }
+  };
+
   const handleViewDetails = (report) => {
     setSelectedReport(report);
     setShowModal(true);
@@ -158,7 +167,7 @@ function ReportList() {
             <tbody>
               {reports.map((report) => (
                 <tr key={report.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '12px' }}>{report.report_period}</td>
+                  <td style={{ padding: '12px' }}>{formatPeriodDisplay(report)}</td>
                   <td style={{ padding: '12px' }}>{report.base_employment}</td>
                   <td style={{ padding: '12px' }}>{report.current_employment}</td>
                   <td style={{ padding: '12px' }}>
@@ -224,7 +233,7 @@ function ReportList() {
             <h3 style={{ marginBottom: '20px', color: '#333' }}>报表详情</h3>
 
             <div style={{ marginBottom: '15px' }}>
-              <strong>调查期：</strong> {selectedReport.report_period}
+              <strong>调查期：</strong> {formatPeriodDisplay(selectedReport)}
             </div>
 
             <div style={{ marginBottom: '15px' }}>

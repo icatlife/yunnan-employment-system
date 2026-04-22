@@ -15,7 +15,52 @@ function ReportForm() {
   const [message, setMessage] = useState('');
   const [existingData, setExistingData] = useState(null);
 
-  const periods = ['2026-01', '2026-02', '2026-03'];
+  const currentYear = 2026;
+  const periods = [];
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = month.toString().padStart(2, '0');
+    if (month <= 3) {
+      periods.push(`${currentYear}-${monthStr}-上旬`);
+      periods.push(`${currentYear}-${monthStr}-下旬`);
+    } else {
+      periods.push(`${currentYear}-${monthStr}`);
+    }
+  }
+
+  const formatPeriodDisplay = (period) => {
+    if (period.includes('-上旬')) {
+      const [year, month] = period.split('-');
+      return `${year}年${parseInt(month)}月 上旬`;
+    } else if (period.includes('-下旬')) {
+      const [year, month] = period.split('-');
+      return `${year}年${parseInt(month)}月 下旬`;
+    } else {
+      const [year, month] = period.split('-');
+      return `${year}年${parseInt(month)}月`;
+    }
+  };
+
+  const getReportParams = (period) => {
+    if (period.includes('-上旬')) {
+      return {
+        report_period: period.split('-').slice(0, 2).join('-'),
+        report_type: 'half_month',
+        half_type: '上旬'
+      };
+    } else if (period.includes('-下旬')) {
+      return {
+        report_period: period.split('-').slice(0, 2).join('-'),
+        report_type: 'half_month',
+        half_type: '下旬'
+      };
+    } else {
+      return {
+        report_period: period,
+        report_type: 'full_month',
+        half_type: null
+      };
+    }
+  };
 
   const reductionTypes = [
     { value: 'CLOSE_BANKRUPT', label: '关闭破产' },
@@ -141,7 +186,8 @@ function ReportForm() {
 
   const loadExistingData = async (period) => {
     try {
-      const response = await api.get(`/api/enterprise/monthly-report?period=${period}`);
+      const { report_period, report_type } = getReportParams(period);
+      const response = await api.get(`/api/enterprise/monthly-report?period=${report_period}&report_type=${report_type}`);
       if (response.data && response.data.length > 0) {
         const report = response.data[0]; // 假设返回数组，取第一个
         setExistingData(report);
@@ -222,8 +268,11 @@ function ReportForm() {
     setMessage('');
 
     try {
+      const { report_period, report_type, half_type } = getReportParams(formData.period);
       const dataToSend = {
-        report_period: formData.period,
+        report_period,
+        report_type,
+        half_type,
         base_employment: parseInt(formData.baselineEmployment),
         current_employment: parseInt(formData.currentEmployment),
         reduce_type_code: formData.reductionType || null,
@@ -262,8 +311,11 @@ function ReportForm() {
     setMessage('');
 
     try {
+      const { report_period, report_type, half_type } = getReportParams(formData.period);
       const dataToSend = {
-        report_period: formData.period,
+        report_period,
+        report_type,
+        half_type,
         base_employment: parseInt(formData.baselineEmployment),
         current_employment: parseInt(formData.currentEmployment),
         reduce_type_code: formData.reductionType || null,
@@ -318,7 +370,7 @@ function ReportForm() {
           >
             <option value="">请选择调查期</option>
             {periods.map(period => (
-              <option key={period} value={period}>{period}</option>
+              <option key={period} value={period}>{formatPeriodDisplay(period)}</option>
             ))}
           </select>
         </div>
